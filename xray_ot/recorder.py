@@ -12,10 +12,13 @@ import threading
 import time
 import traceback
 import warnings
+from typing import List
 
 from basictracer.recorder import SpanRecorder
+from basictracer.span import BasicSpan
 
-from . import constants, connection as conn
+from . import connection as conn
+from . import constants
 
 
 class Recorder(SpanRecorder):
@@ -27,19 +30,22 @@ class Recorder(SpanRecorder):
     component_name, collector_host, collector_port, tags, max_span_records,
     periodic_flush_seconds, verbosity
     """
-    def __init__(self,
-                 component_name=None,
-                 collector_host='127.0.0.1',
-                 collector_port=2000,
-                 tags=None,  # TODO
-                 max_span_records=constants.DEFAULT_MAX_SPAN_RECORDS,
-                 periodic_flush_seconds=constants.FLUSH_PERIOD_SECS,
-                 verbosity=0):
+
+    def __init__(
+        self,
+        component_name=None,
+        collector_host="127.0.0.1",
+        collector_port=2000,
+        tags=None,  # TODO
+        max_span_records=constants.DEFAULT_MAX_SPAN_RECORDS,
+        periodic_flush_seconds=constants.FLUSH_PERIOD_SECS,
+        verbosity=0,
+    ):
         self.verbosity = verbosity
-        self._collector_url = (collector_host, collector_port)
+        self._collector_address = (collector_host, collector_port)
 
         if component_name is None:
-            component_name = sys.argv[0]
+            component_name = sys.argv[0]  # FIXME?
 
         self._mutex = threading.Lock()
         self._span_records = []
@@ -56,10 +62,11 @@ class Recorder(SpanRecorder):
         self._flush_thread = None
         if self._periodic_flush_seconds <= 0:
             warnings.warn(
-                'Runtime(periodic_flush_seconds={0}) means we will never flush to xray daemon unless explicitly requested.'.format(
-                    self._periodic_flush_seconds))
+                f"Runtime(periodic_flush_seconds={self._periodic_flush_seconds}) "
+                f"means we will never flush to xray daemon unless explicitly requested."
+            )
 
-    def _maybe_init_flush_thread(self):
+    def _maybe_init_flush_thread(self) -> None:
         """Start a periodic flush mechanism for this recorder if:
 
         1. periodic_flush_seconds > 0, and 
@@ -70,21 +77,22 @@ class Recorder(SpanRecorder):
         background flush thread starts before `fork()` calls happen.
         """
         if (self._periodic_flush_seconds > 0) and (self._flush_thread is None):
-            self._flush_connection = conn._Connection(self._collector_url)
-            self._flush_thread = threading.Thread(target=self._flush_periodically,
-                                                  name=constants.FLUSH_THREAD_NAME)
+            self._flush_connection = conn.XRayConnection(self._collector_address)
+            self._flush_thread = threading.Thread(
+                target=self._flush_periodically, name=constants.FLUSH_THREAD_NAME
+            )
             self._flush_thread.daemon = True
             self._flush_thread.start()
 
-    def _fine(self, fmt, args):
+    def _fine(self, fmt, args) -> None:
         if self.verbosity >= 1:
             print("[X-Ray Tracer]:", (fmt % args))
 
-    def _finest(self, fmt, args):
+    def _finest(self, fmt, args) -> None:
         if self.verbosity >= 2:
             print("[X-Ray Tracer]:", (fmt % args))
 
-    def record_span(self, span):
+    def record_span(self, span) -> None:
         """Per BasicSpan.record_span, safely add a span to the buffer.
 
         Will drop a previously-added span if the limit has been reached.
@@ -106,34 +114,34 @@ class Recorder(SpanRecorder):
                 return
 
         segment = {
-            'trace_id': span.context.trace_id,
-            'id': span.context.span_id,
-            'start_time': span.start_time,
-            'end_time': span.start_time + span.duration,
-            'name': span.operation_name,
+            "trace_id": span.context.trace_id,
+            "id": span.context.span_id,
+            "start_time": span.start_time,
+            "end_time": span.start_time + span.duration,
+            "name": span.operation_name,
         }
 
         if span.parent_id is not None:
-            segment['parent_id'] = span.parent_id
-            segment['type'] = 'subsegment'
+            segment["parent_id"] = span.parent_id
+            segment["type"] = "subsegment"
         if span.tags:
-            if 'http' in span.tags:
-                segment['http'] = span.tags['http']
-                del span.tags['http']
-            segment['annotations'] = span.tags
+            if "http" in span.tags:
+                segment["http"] = span.tags["http"]
+                del span.tags["http"]
+            segment["annotations"] = span.tags
 
         if len(span.logs) > 0:
             logs = [
-                {'timestamp': log.timestamp, 'fields': log.key_values}
+                {"timestamp": log.timestamp, "fields": log.key_values}
                 for log in span.logs
             ]
-            segment['metadata'] = {'logs': logs}
+            segment["metadata"] = {"logs": logs}
 
         with self._mutex:
             if len(self._span_records) < self._max_span_records:
                 self._span_records.append(segment)
 
-    def flush(self, connection=None):
+    def flush(self, connection=None) -> bool:
         """Immediately send unreported data to the daemon.
 
         Calling flush() will ensure that any current unreported data will be
@@ -154,7 +162,7 @@ class Recorder(SpanRecorder):
             self._maybe_init_flush_thread()
             return self._flush_worker(self._flush_connection)
 
-    def shutdown(self, flush=True):
+    def shutdown(self, flush=True) -> bool:
         """Shutdown the Runtime's connection by (optionally) flushing the
         remaining logs and spans and then disabling the Runtime.
 
@@ -167,14 +175,11 @@ class Recorder(SpanRecorder):
         if self._disabled_runtime:
             return False
 
-        if flush:
-            flushed = self.flush()
-
+        flushed = flush and self.flush()
         self._disabled_runtime = True
-
         return flushed
 
-    def _flush_periodically(self):
+    def _flush_periodically(self) -> None:
         """Periodically send reports to the server.
 
         Runs in a dedicated daemon thread (self._flush_thread).
@@ -184,10 +189,10 @@ class Recorder(SpanRecorder):
             self._flush_worker(self._flush_connection)
             time.sleep(self._periodic_flush_seconds)
 
-    def _flush_worker(self, connection):
+    def _flush_worker(self, connection) -> bool:
         """Use the given connection to transmit the current logs and spans as a
         report request."""
-        if connection == None:
+        if connection is None:
             return False
 
         report_request = self._construct_report_request()
@@ -199,21 +204,20 @@ class Recorder(SpanRecorder):
 
         except Exception as e:
             self._fine(
-                    "Caught exception during report: %s, stack trace: %s",
-                    (e, traceback.format_exc()))
+                "Caught exception during report: %s, stack trace: %s",
+                (e, traceback.format_exc()),
+            )
             self._restore_spans(report_request)
             return False
 
-
-    def _construct_report_request(self):
+    def _construct_report_request(self) -> List[BasicSpan]:
         """Construct a report request."""
-        report = None
         with self._mutex:
-            report = self._span_records
+            records = self._span_records
             self._span_records = []
-        return report
+        return records
 
-    def _restore_spans(self, span_records):
+    def _restore_spans(self, span_records) -> None:
         """Called after a flush error to move records back into the buffer
         """
         if self._disabled_runtime:
@@ -223,4 +227,4 @@ class Recorder(SpanRecorder):
             if len(self._span_records) >= self._max_span_records:
                 return
             combined = span_records + self._span_records
-            self._span_records = combined[-self._max_span_records:]
+            self._span_records = combined[-self._max_span_records :]

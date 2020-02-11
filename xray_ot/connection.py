@@ -1,20 +1,22 @@
 """Connection class marshals data over UDP to daemon."""
-import socket
 import json
+from socket import AF_INET, SOCK_DGRAM, SocketType, socket
 
 
-class _Connection(object):
-    """Instances of _Connection are used to communicate with the X-Ray daemon
-    via UDP.
+class XRayConnection(object):
     """
-    def __init__(self, collector_url):
-        self._collector_url = collector_url
-        self._socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    Instances of _Connection are used to communicate with the X-Ray daemon via UDP.
+    """
 
-    def _format(self, msg):
-        return ('{"format": "json", "version": 1}\n' + json.dumps(msg)).encode('utf8')
+    def __init__(self, collector_address: (str, int)):
+        self._collector_address: str = collector_address
+        self._socket: SocketType = socket(AF_INET, SOCK_DGRAM)
 
-    def report(self, msg):
+    @staticmethod
+    def to_payload(msg) -> bytes:
+        return ('{"format": "json", "version": 1}\n' + json.dumps(msg)).encode("utf8")
+
+    def report(self, msg) -> None:
         """Report to the daemon."""
         for m in msg:
-            self._socket.sendto(self._format(m), self._collector_url)
+            self._socket.sendto(self.to_payload(m), self._collector_address)

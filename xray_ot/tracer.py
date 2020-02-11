@@ -8,19 +8,19 @@ See the API definition for comments.
 """
 from __future__ import absolute_import
 
-import time
 import binascii
 import os
+import time
 
 from basictracer import BasicTracer
 from opentracing import Format
 
+from .binary_propagator import BinaryPropagator
 from .recorder import Recorder
 from .text_propagator import TextPropagator
-from .binary_propagator import BinaryPropagator
 
 
-def Tracer(**kwargs):
+def Tracer(**kwargs) -> "_XRayTracer":
     """Instantiates the AWS X-Ray OpenTracing implementation.
 
     :param str component_name: the human-readable identity of the instrumented
@@ -50,20 +50,22 @@ class _XRayTracer(BasicTracer):
         self.register_propagator(Format.HTTP_HEADERS, TextPropagator())
         self.register_propagator(Format.BINARY, BinaryPropagator())
 
-    def flush(self):
+    def flush(self) -> None:
         """Force a flush of buffered Span data to the X-Ray daemon."""
         self.recorder.flush()
 
     def start_span(self, *args, **kwargs):
-        span = BasicTracer.start_span(self, *args, **kwargs)
+        span = super().start_span(*args, **kwargs)
         if span.parent_id is None:
-            span.context.trace_id = '1-%x-%s' % (int(time.time()),
-                binascii.b2a_hex(os.urandom(12)).decode('ascii'))
-        span.context.span_id = binascii.b2a_hex(os.urandom(8)).decode('ascii')
+            span.context.trace_id = "1-%x-%s" % (
+                int(time.time()),
+                binascii.b2a_hex(os.urandom(12)).decode("ascii"),
+            )
+        span.context.span_id = binascii.b2a_hex(os.urandom(8)).decode("ascii")
         return span
 
-    def __enter__(self):
+    def __enter__(self) -> "_XRayTracer":
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         self.flush()
