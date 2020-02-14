@@ -9,7 +9,7 @@ setup(
     long_description="",
     author="Jeremy Apthorp <nornagon@nornagon.net>",
     license="",
-    install_requires=["basictracer>=2.2,<2.3"],
+    install_requires=["basictracer>=3.1,<4.0"],
     tests_require=["pytest", "sphinx", "sphinx-epytext"],
     classifiers=[
         "Operating System :: OS Independent",
