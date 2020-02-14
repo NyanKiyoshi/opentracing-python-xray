@@ -19,6 +19,8 @@ from basictracer.span import BasicSpan
 
 from . import connection as conn
 from . import constants
+from .settings import RecordingSettings
+from .translator import Translator
 
 
 class Recorder(SpanRecorder):
@@ -36,7 +38,7 @@ class Recorder(SpanRecorder):
         component_name=None,
         collector_host="127.0.0.1",
         collector_port=2000,
-        tags=None,  # TODO
+        settings: RecordingSettings = None,
         max_span_records=constants.DEFAULT_MAX_SPAN_RECORDS,
         periodic_flush_seconds=constants.FLUSH_PERIOD_SECS,
         verbosity=0,
@@ -44,8 +46,8 @@ class Recorder(SpanRecorder):
         self.verbosity = verbosity
         self._collector_address = (collector_host, collector_port)
 
-        if component_name is None:
-            component_name = sys.argv[0]  # FIXME?
+        self.component_name = component_name if component_name is None else sys.argv[0]
+        self.settings = settings if settings is not None else RecordingSettings()
 
         self._mutex = threading.Lock()
         self._span_records = []
@@ -125,10 +127,7 @@ class Recorder(SpanRecorder):
             segment["parent_id"] = span.parent_id
             segment["type"] = "subsegment"
         if span.tags:
-            if "http" in span.tags:
-                segment["http"] = span.tags["http"]
-                del span.tags["http"]
-            segment["annotations"] = span.tags
+            segment.update(Translator.translate(settings=self.settings, span=span))
 
         if len(span.logs) > 0:
             logs = [

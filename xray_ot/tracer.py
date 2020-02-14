@@ -16,7 +16,8 @@ from basictracer import BasicTracer
 from opentracing import Format
 
 from .binary_propagator import BinaryPropagator
-from .recorder import Recorder
+from xray_ot.recorder import Recorder
+from .rand import generate_64bit_id_as_hex
 from .text_propagator import TextPropagator
 
 
@@ -61,7 +62,7 @@ class _XRayTracer(BasicTracer):
                 int(time.time()),
                 binascii.b2a_hex(os.urandom(12)).decode("ascii"),
             )
-        span.context.span_id = binascii.b2a_hex(os.urandom(8)).decode("ascii")
+        span.context.span_id = generate_64bit_id_as_hex()
         return span
 
     def __enter__(self) -> "_XRayTracer":
