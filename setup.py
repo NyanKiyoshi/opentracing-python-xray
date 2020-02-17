@@ -9,7 +9,7 @@ setup(
     long_description="",
     author="Jeremy Apthorp <nornagon@nornagon.net>",
     license="",
-    install_requires=["basictracer>=3.1,<4.0,opentracing>=2.3.0"],
+    install_requires=["basictracer>=3.1,<4.0", "opentracing>=2.3.0"],
     tests_require=["pytest"],
     classifiers=[
         "Operating System :: OS Independent",
