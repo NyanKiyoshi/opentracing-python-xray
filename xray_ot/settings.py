@@ -18,7 +18,12 @@ class RecordingSettings:
     )
 
     http_request_annotations: Dict[str, str] = default_field(
-        {"method": "method", "url": "url"}
+        {
+            "method": "method",
+            "url": "url",
+            "client_ip": "client_ip",
+            "user_agent": "user_agent",
+        }
     )
 
     http_response_annotations: Dict[str, str] = default_field({"status_code": "status"})
