@@ -2,6 +2,8 @@
 import json
 from socket import AF_INET, SOCK_DGRAM, SocketType, socket
 
+from xray_ot.encoder import default_encoder
+
 
 class XRayConnection(object):
     """
@@ -14,7 +16,10 @@ class XRayConnection(object):
 
     @staticmethod
     def to_payload(msg) -> bytes:
-        return ('{"format": "json", "version": 1}\n' + json.dumps(msg)).encode("utf8")
+        return (
+            '{"format": "json", "version": 1}\n'
+            + json.dumps(msg, default=default_encoder)
+        ).encode("utf8")
 
     def report(self, msg) -> None:
         """Report to the daemon."""
