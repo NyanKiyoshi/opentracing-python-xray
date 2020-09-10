@@ -37,6 +37,10 @@ def add_spans():
             child_span.set_tag('error', True)
             child_span.log_event('Uh Oh!', payload={'stacktrace': [tuple(f) for
                 f in traceback.extract_stack()]})
+            try:
+                raise ValueError("Invalid Coordinates", (1, 2, 3))
+            except BaseException as exc:
+                child_span.log_event('Uh Oh!', payload=exc)
             sleep_dot()
 
             # Play with the propagation APIs... this is not IPC and thus not
@@ -51,6 +55,7 @@ def add_spans():
                     remote_span.log_event('Remote!')
                     remote_span.set_tag('span_type', 'remote')
                     sleep_dot()
+
 
 def xray_tracer_from_args():
     """Initializes X-Ray from the commandline args.
