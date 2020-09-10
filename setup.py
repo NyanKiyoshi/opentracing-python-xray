@@ -3,11 +3,12 @@
 from setuptools import find_packages, setup
 
 setup(
-    name="xray-python-opentracing",
-    version="0.0.2",
+    name="xray-python-opentracing-fork",
+    version="0.0.3",
     description="AWS X-Ray Python OpenTracing Implementation",
     long_description="",
     author="Jeremy Apthorp <nornagon@nornagon.net>",
+    maintainer="KOCAK Mikail <hello@vanille.bid>",
     license="",
     install_requires=["basictracer>=3.1,<4.0", "opentracing>=2.3.0"],
     tests_require=["pytest"],
