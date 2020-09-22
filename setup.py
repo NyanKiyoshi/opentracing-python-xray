@@ -4,7 +4,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="xray-python-opentracing-fork",
-    version="0.0.3",
+    version="0.0.4",
     description="AWS X-Ray Python OpenTracing Implementation",
     long_description="",
     author="Jeremy Apthorp <nornagon@nornagon.net>",
