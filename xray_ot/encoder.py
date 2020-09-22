@@ -1,4 +1,5 @@
 import traceback
+import warnings
 from typing import Any, Type
 
 
@@ -15,6 +16,5 @@ def default_encoder(o: Any) -> Any:
         }
         return result
 
-    raise TypeError(
-        f"Object of type {o.__class__.__name__} is not JSON serializable"
-    )
+    warnings.warn("Unable to serialize object: %r" % o, UserWarning)
+    return repr(o)

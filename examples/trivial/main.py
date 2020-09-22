@@ -20,6 +20,7 @@ def add_spans():
     """
     with opentracing.tracer.start_span(operation_name='trivial/initial_request') as parent_span:
         parent_span.set_tag('url', 'localhost')
+        parent_span.set_tag('invalid', int)
         sleep_dot()
         parent_span.log_event('All good here!', payload={'N': 42, 'pi': 3.14, 'abc': 'xyz'})
         parent_span.log_kv({'foo': 'bar', 'int': 42, 'float': 4.2, 'bool': True, 'obj': {'blargh': 'hmm', 'whee': 4324}})
